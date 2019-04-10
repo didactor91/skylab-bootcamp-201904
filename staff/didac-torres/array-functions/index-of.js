@@ -13,5 +13,5 @@ function indexOf(array, item) {
              return pos=i;
         }
     }
-    return false
+    return -1
 }
