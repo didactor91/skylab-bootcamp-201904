@@ -12,5 +12,6 @@ function reverse(array){
         array1[i]=array[array.length-(i+1)];
 
     }
-    return array1
+    array=array1;
+    return array
 }
