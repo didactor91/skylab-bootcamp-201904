@@ -20,7 +20,7 @@ var landing = new Landing(sections[0], i18n.landing, function() {
     landing.visible = false;
     login.visible = true;
 });
-landing.visible = false;
+// landing.visible = false;
 
 var forms = document.getElementsByTagName('form');
 
@@ -65,6 +65,6 @@ var home = new Home(main, function(query) {
         });
     });
 });
-// home.visible = false;
+home.visible = false;
 
 

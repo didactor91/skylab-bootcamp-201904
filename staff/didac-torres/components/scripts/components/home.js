@@ -1,13 +1,13 @@
 'use strict';
 
-function Home(container, onSearch) {
+function Home(container, onSearch, onDetail) {
     Component.call(this, container);
 
     var form = this.container.children[1];
     new Search(form, onSearch);
 
     var ul = this.container.children[2];
-    var results = new Results(ul);
+    var results = new Results(ul,onDetail);
     this.__results__ = results;
 }
 
