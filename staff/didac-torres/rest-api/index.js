@@ -44,77 +44,108 @@ app.post('/register', [checkLogin('/home'), urlencodedParser], (req, res) => {
     }
 })
 
-app.get('/login', checkLogin('/home'), (req, res) =>
-    res.render('login')
-)
+app.post('/user/authenticate', jsonParser, (req, res) => {
+    const { body: { email, password } } = req
 
-app.post('/login', [checkLogin('/home'), urlencodedParser], (req, res) => {
-    const { body: { email, password }, logic, session } = req
 
     try {
-        logic.loginUser(email, password)
-            .then(() => {
-                session.token = logic.__userToken__
-
-                res.redirect('/home')
+        return logic.authenticateUser(email, password)
+            .then((response) => res.json({ response }))
+            .catch(({ message }) => {
+                res.status(400).json({ error: message })
             })
-            .catch(({ message }) => res.render('login', { email, message }))
     } catch ({ message }) {
-        res.render('login', { email, message })
+        res.status(400).json({ error: message })
     }
 })
 
-app.get('/home', checkLogin('/', false), (req, res) => {
-    const { logic } = req
+app.get('/search', jsonParser, (req, res) => {
 
-    logic.retrieveUser()
-        .then(({ name }) => res.render('home', { name }))
-        .catch(({ message }) => res.render('home', { message }))
+    const { headers: { authorization } } = req
+    const { query: { q } } = req
+    let query = q
+    let token = authorization.slice(8, authorization.length)
+
+
+    try {
+        logic.searchDucks(token, query)
+            .then((results) => res.json({ results }))
+            .catch(({ message }) => {
+                res.status(400).json({ error: message })
+            })
+    } catch ({ message }) {
+        res.status(400).json({ error: message })
+    }
 })
 
-app.get('/home/search', checkLogin('/', false), urlencodedParser, (req, res) => {
-    const { query: { query }, logic, session } = req
+app.get('/search/detail/:id', jsonParser, (req, res) => {
 
-    session.query = query
+    const { headers: { authorization }, params: {id} } = req
 
-    logic.searchDucks(query)
-        .then(ducks => {
-            ducks = ducks.map(({ id, title, imageUrl: image, price }) => ({ id, url: `/home/duck/${id}`, favUrl: `/home/fav/${id}`, cartUrl: `/home/cart/${id}`, title, image, price }))
+    let token = authorization.slice(8, authorization.length)
 
-            return logic.retrieveFavDucks()
-                .then(favs => {
-                    ducks.forEach(duck => duck.isFav = favs.some(fav => fav.id === duck.id))
-
-                    return logic.retrieveUser()
-                        .then(({ name }) => res.render('home', { name, query, ducks }))
-                })
-        })
-        .catch(({ message }) => res.render('home', { name, query, message }))
+    try {
+        logic.retrieveDuck(token, id)
+            .then((duck) => res.json({ duck }))
+            .catch(({ message }) => {
+                res.status(400).json({ error: message })
+            })
+    } catch ({ message }) {
+        res.status(400).json({ error: message })
+    }
 })
 
-app.get('/home/duck/:id', checkLogin('/', false), (req, res) => {
-    const { params: { id }, logic, session: { query } } = req
+app.post('/toogleFav', jsonParser, (req, res) => {
 
-    logic.retrieveDuck(id)
-        .then(({ title, imageUrl: image, description, price }) => {
-            const duck = { title, image, description, price, favUrl: `/home/fav/${id}`, cartUrl: `/home/cart/${id}` }
+    const { headers: { authorization } } = req
+    const { query: { q } } = req
+    let id = q
+    let token = authorization.slice(8, authorization.length)
 
-            return logic.retrieveFavDucks()
-                .then(favs => {
-                    duck.isFav = favs.some(fav => fav.id === id)
 
-                    return logic.retrieveUser()
-                        .then(({ name }) => res.render('home', { query, name, duck }))
-                })
-        })
+    try {
+        logic.toggleFavDuck(token, id)
+            .then(() => res.status(200).json({ message: "ok added" }))
+            .catch(({ message }) => {
+                res.status(400).json({ error: message })
+            })
+    } catch ({ message }) {
+        res.status(400).json({ error: message })
+    }
 })
 
-app.post('/home/fav/:id', checkLogin('/', false), (req, res) => {
-    const { params: { id }, logic, session: { query } } = req
+app.get('/retriveFav', jsonParser, (req, res) => {
 
-    logic.toggleFavDuck(id)
-        .then(() => res.redirect(req.get('referer')))
-        .catch(({ message }) => res.render('home', { name, query, message }))
+    const { headers: { authorization } } = req
+    let token = authorization.slice(8, authorization.length)
+
+
+    try {
+        logic.retrieveFavDucks(token)
+            .then((duck) => res.status(200).json({ duck }))
+            .catch(({ message }) => {
+                res.status(400).json({ error: message })
+            })
+    } catch ({ message }) {
+        res.status(400).json({ error: message })
+    }
+})
+
+app.get('/retriveUser', jsonParser, (req, res) => {
+
+    const { headers: { authorization } } = req
+    let token = authorization.slice(8, authorization.length)
+
+
+    try {
+        logic.retrieveUser(token)
+            .then((data) => res.status(200).json({ data }))
+            .catch(({ message }) => {
+                res.status(400).json({ error: message })
+            })
+    } catch ({ message }) {
+        res.status(400).json({ error: message })
+    }
 })
 
 app.post('/logout', (req, res) => {
@@ -124,7 +155,6 @@ app.post('/logout', (req, res) => {
 })
 
 app.use(function (req, res, next) {
-    debugger
     res.redirect('/')
 })
 
