@@ -122,7 +122,7 @@ app.get('/home/cart', checkLogin('/', false), (req, res) => {
         let shipCost = 0
         let withShip = 0
             cart.forEach((item)=>{
-                item=Number((item.price).slice(0, (item.price).length - 2)) 
+                item=Number((item.price).slice(0, (item.price).length - 2))
                  totalPrice += item })
 
             totalPrice=totalPrice.toFixed(2)
