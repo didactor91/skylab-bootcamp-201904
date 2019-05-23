@@ -24,35 +24,32 @@ describe('logic', () => {
         describe('register user', () => {
             beforeEach(() => file.writeFile(userData.__file__, '[]'))
 
-            it('should succeed on correct user data', async () => {
-                const response = await logic.registerUser(name, surname, email, password)
-                expect(response).toBeUndefined()
+            it('should succeed on correct user data', () =>
+                logic.registerUser(name, surname, email, password)
+                    .then(response => {
+                        expect(response).toBeUndefined()
 
-                const users = await userData.find(user => user.matches({ name, surname, email, password }))
-
-                expect(users).toBeDefined()
-                expect(users).toHaveLength(1)
-            }
+                        return userData.find(user => user.matches({ name, surname, email, password }))
+                    })
+                    .then(users => {
+                        expect(users).toBeDefined()
+                        expect(users).toHaveLength(1)
+                    })
             )
 
             describe('on already existing user', () => {
                 beforeEach(() => logic.registerUser(name, surname, email, password))
 
-                it('should fail on retrying to register', async () => {
-                    try {
-                        await logic.registerUser(name, surname, email, password)
-                        throw new Error('Do not should reach this point')
-                    }
-
-                    catch{
-                        error => {
+                it('should fail on retrying to register', () =>
+                    logic.registerUser(name, surname, email, password)
+                        .then(() => { throw Error('should not reach this point') })
+                        .catch(error => {
                             expect(error).toBeDefined()
                             expect(error).toBeInstanceOf(LogicError)
 
                             expect(error.message).toBe(`user with email "${email}" already exists`)
-                        }
-                    }
-                })
+                        })
+                )
             })
 
             it('should fail on undefined name', () => {
@@ -141,106 +138,98 @@ describe('logic', () => {
                 userData.create({ name, surname, email, password })
             )
 
-            it('should succeed on correct user credential', async () => {
-                const id = await logic.authenticateUser(email, password)
+            it('should succeed on correct user credential', () =>
+                logic.authenticateUser(email, password)
+                    .then(id => {
+                        expect(typeof id).toBe('string')
+                        expect(id.length).toBeGreaterThan(0)
+                    })
+            )
 
-                expect(typeof id).toBe('string')
-                expect(id.length).toBeGreaterThan(0)
-            })
-
-            it('should fail on non-existing user', async () => {
-                try {
-                    await logic.authenticateUser(email = 'unexisting-user@mail.com', password)
-                    throw new Error('Do not should reach this point')
-                }
-                catch{
-                    error => {
+            it('should fail on non-existing user', () =>
+                logic.authenticateUser(email = 'unexisting-user@mail.com', password)
+                    .then(() => { throw Error('should not reach this point') })
+                    .catch(error => {
                         expect(error).toBeDefined()
                         expect(error).toBeInstanceOf(LogicError)
 
                         expect(error.message).toBe(`user with email "${email}" does not exist`)
-                    }
-                }
-            })
+                    })
+            )
         })
 
         describe('retrieve user', () => {
             let id
 
-            beforeEach(async () => {
-                await userData.create({ name, surname, email, password })
-                const users = await userData.find(user => user.email === email)
-                return id = users[0].id
-            })
+            beforeEach(() =>
+                userData.create({ name, surname, email, password })
+                    .then(() => userData.find(user => user.email === email))
+                    .then(users => id = users[0].id)
+            )
 
-            it('should succeed on correct user id', async () => {
-                const user = await logic.retrieveUser(id)
-                expect(user.id).toBeUndefined()
-                expect(user.name).toBe(name)
-                expect(user.surname).toBe(surname)
-                expect(user.email).toBe(email)
-                expect(user.password).toBeUndefined()
+            it('should succeed on correct user id', () =>
+                logic.retrieveUser(id)
+                    .then(user => {
+                        expect(user.id).toBeUndefined()
+                        expect(user.name).toBe(name)
+                        expect(user.surname).toBe(surname)
+                        expect(user.email).toBe(email)
+                        expect(user.password).toBeUndefined()
+                    })
+            )
 
-            })
-
-            it('should fail on unexisting user id', async () => {
+            it('should fail on unexisting user id', () => {
                 id = 'wrong-id'
-                try {
-                    await logic.retrieveUser(id)
-                    throw new Error('Do not should reach this point')
 
-                }
-                catch{
-                    error => {
+                return logic.retrieveUser(id)
+                    .then(() => { throw new Error('should not reach this point') })
+                    .catch(error => {
                         expect(error).toBeDefined()
                         expect(error).toBeInstanceOf(LogicError)
 
                         expect(error.message).toBe(`user with id "${id}" does not exist`)
-                    }
-                }
+                    })
             })
         })
 
         describe('toggle fav duck', () => {
             let id, duckId
 
-            beforeEach(async () => {
+            beforeEach(() => {
                 duckId = `${Math.random()}`
 
-                await userData.create({ name, surname, email, password })
-                const data = await userData.find(user => user.email === email)
-                const [user] = data
-                return id = user.id
+                return userData.create({ name, surname, email, password })
+                    .then(() => userData.find(user => user.email === email))
+                    .then(([user]) => id = user.id)
             })
 
-            it('should succeed adding fav on first time', async () => {
-                const response = await logic.toggleFavDuck(id, duckId)
-                expect(response).toBeUndefined()
+            it('should succeed adding fav on first time', () =>
+                logic.toggleFavDuck(id, duckId)
+                    .then(response => expect(response).toBeUndefined())
+                    .then(() => userData.retrieve(id))
+                    .then(user => {
+                        const { favs } = user
 
-                const user = await userData.retrieve(id)
+                        expect(favs).toBeDefined()
+                        expect(favs).toBeInstanceOf(Array)
+                        expect(favs).toHaveLength(1)
+                        expect(favs[0]).toBe(duckId)
+                    })
+            )
 
-                const { favs } = user
+            it('should succeed removing fav on second time', () =>
+                logic.toggleFavDuck(id, duckId)
+                    .then(() => logic.toggleFavDuck(id, duckId))
+                    .then(response => expect(response).toBeUndefined())
+                    .then(() => userData.retrieve(id))
+                    .then(user => {
+                        const { favs } = user
 
-                expect(favs).toBeDefined()
-                expect(favs).toBeInstanceOf(Array)
-                expect(favs).toHaveLength(1)
-                expect(favs[0]).toBe(duckId)
-            })
-
-
-            it('should succeed removing fav on second time', async () => {
-                await logic.toggleFavDuck(id, duckId)
-                const response = await logic.toggleFavDuck(id, duckId)
-                expect(response).toBeUndefined()
-                const user = await userData.retrieve(id)
-
-                const { favs } = user
-
-                expect(favs).toBeDefined()
-                expect(favs).toBeInstanceOf(Array)
-                expect(favs).toHaveLength(0)
-
-            })
+                        expect(favs).toBeDefined()
+                        expect(favs).toBeInstanceOf(Array)
+                        expect(favs).toHaveLength(0)
+                    })
+            )
 
             it('should fail on null duck id', () => {
                 duckId = null
@@ -254,42 +243,42 @@ describe('logic', () => {
         describe('retrieve fav ducks', () => {
             let id, _favs
 
-            beforeEach(async () => {
+            beforeEach(() => {
                 _favs = []
 
-                const ducks = await duckApi.searchDucks('')
+                return duckApi.searchDucks('')
+                    .then(ducks => {
+                        for (let i = 0; i < 10; i++) {
+                            const randomIndex = Math.floor(Math.random() * ducks.length)
 
-                for (let i = 0; i < 10; i++) {
-                    const randomIndex = Math.floor(Math.random() * ducks.length)
+                            _favs[i] = ducks.splice(randomIndex, 1)[0].id
+                        }
 
-                    _favs[i] = ducks.splice(randomIndex, 1)[0].id
-                }
-
-                await userData.create({ email, password, name, surname, favs: _favs })
-
-                const data = await userData.find(user => user.email === email)
-                const [user] = data
-                return id = user.id
+                        return userData.create({ email, password, name, surname, favs: _favs })
+                    })
+                    .then(() => userData.find(user => user.email === email))
+                    .then(([user]) => id = user.id)
 
             })
 
-            it('should succeed adding fav on first time', async () => {
-                const ducks = await logic.retrieveFavDucks(id)
+            it('should succeed adding fav on first time', () =>
+                logic.retrieveFavDucks(id)
+                    .then(ducks => {
+                        ducks.forEach(({ id, title, imageUrl, description, price }) => {
+                            const isFav = _favs.some(fav => fav === id)
 
-                await ducks.forEach(({ id, title, imageUrl, description, price }) => {
-                    const isFav = _favs.some(fav => fav === id)
-
-                    expect(isFav).toBeTruthy()
-                    expect(typeof title).toBe('string')
-                    expect(title.length).toBeGreaterThan(0)
-                    expect(typeof imageUrl).toBe('string')
-                    expect(imageUrl.length).toBeGreaterThan(0)
-                    expect(typeof description).toBe('string')
-                    expect(description.length).toBeGreaterThan(0)
-                    expect(typeof price).toBe('string')
-                    expect(price.length).toBeGreaterThan(0)
-                })
-            })
+                            expect(isFav).toBeTruthy()
+                            expect(typeof title).toBe('string')
+                            expect(title.length).toBeGreaterThan(0)
+                            expect(typeof imageUrl).toBe('string')
+                            expect(imageUrl.length).toBeGreaterThan(0)
+                            expect(typeof description).toBe('string')
+                            expect(description.length).toBeGreaterThan(0)
+                            expect(typeof price).toBe('string')
+                            expect(price.length).toBeGreaterThan(0)
+                        })
+                    })
+            )
         })
     })
 

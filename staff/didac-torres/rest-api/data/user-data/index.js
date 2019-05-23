@@ -1,59 +1,29 @@
-const file = require('../../common/utils/file')
-const path = require('path')
-const uuid = require('uuid/v4')
 const validate = require('../../common/validate')
 const { ValueError } = require('../../common/errors')
 
 const userData = {
-    __file__: path.join(__dirname, 'users.json'),
-
-    async __load__() {
-        if (this.__users__)
-            return this.__users__
-        else {
-            const content = await file.readFile(this.__file__, 'utf8')
-
-            const users = JSON.parse(content)
-
-            return this.__users__ = users
-        }
-    },
-
-    __save__() {
-        return file.writeFile(this.__file__, JSON.stringify(this.__users__))
-    },
+    __col__: null,
 
     create(user) {
         validate.arguments([
             { name: 'user', value: user, type: 'object', optional: false }
         ])
 
-        user.id = uuid()
-
         return (async () => {
-            const users = await this.__load__()
-
-            users.push(user)
-
-            return await this.__save__()
+            await this.__col__.insertOne(user)
         })()
     },
 
     list() {
-        return this.__load__()
-
+        return this.__col__.find().toArray()
     },
 
     retrieve(id) {
         validate.arguments([
-            { name: 'id', value: id, type: 'string', notEmpty: true, optional: false }
+            { name: 'id', value: id, type: 'object', notEmpty: true, optional: false }
         ])
 
-        return (async () => {
-            const users = await this.__load__()
-
-            return users.find(({ id: _id }) => _id === id)
-        })()
+        return this.__col__.findOne(id)
     },
 
     find(criteria) {
@@ -62,33 +32,35 @@ const userData = {
         ])
 
         return (async () => {
-            const users = await this.__load__()
+            const cursor = await this.__col__.find()
 
-            return users.filter(criteria)
+            const users = []
+
+            await cursor.forEach(user => {
+                if (criteria(user))
+                    users.push(user)
+            })
+
+            return users
         })()
     },
 
     update(id, data, replace) {
         validate.arguments([
-            { name: 'id', value: id, type: 'string', notEmpty: true },
+            { name: 'id', value: id, type: 'object', notEmpty: true },
             { name: 'data', value: data, type: 'object' },
             { name: 'replace', value: replace, type: 'boolean', optional: true }
         ])
 
-        if (data.id && id !== data.id) throw new ValueError('data id does not match criteria id')
+        if (data._id && id.toString() !== data._id.toString()) throw new ValueError('data id does not match criteria id')
 
         return (async () => {
-            const users = await this.__load__()
+            // if (replace)
+            //     await users.findOneAndReplace(id, data)
+            // else
+            //     await users.findOneAndUpdate(id, { $set: data })
 
-            const user = users.find(({ id: _id }) => _id === id)
-
-            if (replace)
-                for (const key in user)
-                    if (key !== 'id') delete user[key]
-
-            for (const key in data) user[key] = data[key]
-
-            return await this.__save__()
+            await replace ? this.__col__.findOneAndReplace({ _id: id }, data) : this.__col__.findOneAndUpdate({ _id: id }, { $set: data })
         })()
     }
 }
