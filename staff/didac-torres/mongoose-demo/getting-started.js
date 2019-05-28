@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 
-
 mongoose.connect('mongodb://localhost/mongoose-demo', { useNewUrlParser: true })
 
 let db = mongoose.connection
@@ -17,21 +16,22 @@ db.once('open', async () => {
         email: String,
         password: String
     })
+
     usersSchema.methods.drink = function () {
-        let action = this.age > 21
+        const action = this.age > 18
             ? this.name + ' is drinking Beer'
             : this.name + ' is ' + this.age + ' year old. ' + this.name + ' is drinking Soy Milk'
         return action
     }
 
     usersSchema.methods.salute = function () {
-        let action = this.age > 1
+        const action = this.age > 1
             ? this.name + ' says: Hi!!'
             : this.name + ' says: Gugu Gaga'
         return action
     }
 
-    let User = await mongoose.model('User', usersSchema);
+    const User = await mongoose.model('User', usersSchema);
 
     let mongoadult = await User.create({ name: 'MongoDemo', surname: 'Superflis', age: 69, email: 'ass_ass_babe@gugle.com', password: '0000' })
 
